@@ -1,0 +1,18 @@
+#! /bin/sh
+
+if [ -n "$SOURCE_DATE_EPOCH" ]; then
+    compile_date=\"`date -u -d "@$SOURCE_DATE_EPOCH" 2>/dev/null || date -u -r "$SOURCE_DATE_EPOCH" 2>/dev/null || date -u`\"
+    compile_system=\"reproducible\"
+else
+    compile_date=\"`date`\"
+    compile_system=\"`uname -srm`\"
+fi
+moduledir=\"$1\"
+
+echo "/* This file was generated automatically by 'make_info' */"
+echo
+echo "#define MODULE_DIR $moduledir"
+echo "#define COMPILE_DATE $compile_date"
+echo "#define COMPILE_SYSTEM $compile_system"
+echo
+echo "/* End of file */"

@@ -1,0 +1,24 @@
+#!/bin/bash
+# umountavfs -- program to unmount avfs file system
+# and unload avfsd daemon.
+# companion program to mountavfs
+# will check to see if avfsd is mounted and then
+# unmount using fusermount.
+
+# suggested use: in a logout script or wm exit routine
+
+# if unset or not pointing to a directory, revert to default mount point
+if [ ! -d "$AVFSBASE" ]; then
+    AVFSBASE="${HOME}/.avfs"
+fi
+
+grep -qE "avfsd ${AVFSBASE}" /proc/mounts && {
+   echo unMounting AVFS on $AVFSBASE...
+   if type -p fusermount > /dev/null 2>&1 ; then
+      fusermount -u -z "$AVFSBASE"
+   else
+      umount -l "$AVFSBASE"
+   fi
+
+   unset AVFSBASE
+}

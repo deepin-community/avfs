@@ -1,0 +1,11 @@
+--- a/configure.ac
++++ b/configure.ac
+@@ -265,7 +265,7 @@
+ 	LIBS="$LIBS -pthread"
+ fi
+ 
+-moduledir='${libdir}/avfs'
++moduledir='${datarootdir}/avfs'
+ 
+ AC_SUBST(moduledir)
+ 

@@ -1,0 +1,25 @@
+avfs for Debian
+---------------
+
+To use this filesystem the user has to access to /dev/fuse and the fuse
+utilities. On Debian this normally means that the user has to be part of the
+group fuse.
+
+The shared library hasn't been packaged so far because I don't know a single
+application using it. This might change in the future.
+
+Webdav support is disabled for the time being because it needs some more work.
+
+This package comes with several libraries build in, namely zlib and bzlib. The
+usage of the normal shared libs is impossible unfortunately. Here's upstream
+reasoning:
+
+---
+AVFS uses a modified version of zlib which can create snapshots of the
+compression state.  This allows seeking within the gzipped file
+without having to cache the whole uncompressed file.
+
+This makes it impossible to use the shared zlib, unfortunately.
+---
+
+ -- Michael Meskes <meskes@debian.org>  Tue, 18 Mar 2008 20:48:39 +0100

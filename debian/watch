@@ -1,0 +1,3 @@
+version=4
+http://sf.net/avf/avfs-(\d\S+)\.tar\.(?:bz2|gz|xz)
+

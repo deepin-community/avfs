@@ -1,0 +1,11 @@
+--- a/scripts/umountavfs
++++ b/scripts/umountavfs
+@@ -20,5 +20,8 @@
+       umount -l "$AVFSBASE"
+    fi
+ 
++   # Remove directory again
++   rmdir ${AVFSBASE}
++
+    unset AVFSBASE
+ }
