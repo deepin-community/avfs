@@ -1,0 +1,7 @@
+avfs: non-empty-dependency_libs-in-la-file usr/lib/libavfs.la
+avfs: package-name-doesnt-match-sonames libavfs0
+avfs: non-dev-pkg-with-shlib-symlink usr/lib/libavfs.so.0.0.2 usr/lib/libavfs.so
+avfs: uses-dpkg-database-directly usr/share/avfs/extfs/apt
+avfs: uses-dpkg-database-directly usr/share/avfs/extfs/debd
+avfs: uses-dpkg-database-directly usr/share/avfs/extfs/dpkg
+

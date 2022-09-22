@@ -1,0 +1,11 @@
+--- avfs/extfs/udar	2020-08-24 10:55:08.146960894 +0200
++++ avfs/extfs/udar	2020-08-24 11:11:06.847145338 +0200
+@@ -19,7 +19,7 @@
+ #  - hard links (h) and special dar file type (e) are handled
+ #    as regular files
+ 
+-DAR=dar_static
++DAR=dar
+ 
+ # dar expects the basename (without number and extension)
+ BASENAME="`echo "$2" | sed -e 's/\.[0-9]*\.[Dd][Aa][Rr]$//'`"

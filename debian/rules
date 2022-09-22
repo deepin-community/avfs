@@ -1,0 +1,37 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS=hardening=+all
+
+CFLAGS = `dpkg-buildflags --get CFLAGS`
+CFLAGS += -Wall
+LDFLAGS = `dpkg-buildflags --get LDFLAGS`
+CPPFLAGS = `dpkg-buildflags --get CPPFLAGS`
+
+%:
+	dh ${@} --with quilt,autoreconf
+
+
+override_dh_auto_configure:
+	touch configure
+	(export AWK=awk; ./configure --host=$(DEB_HOST_GNU_TYPE) \
+			--build=$(DEB_BUILD_GNU_TYPE) \
+			--prefix=/usr \
+			--mandir=\$${prefix}/share/man \
+			--infodir=\$${prefix}/share/info \
+			--with-pkgconfigdir=\$${prefix}/lib/$(DEB_HOST_MULTIARCH)/pkgconfig \
+			CFLAGS="$(CFLAGS)" \
+			CPPFLAGS="$(CPPFLAGS)" \
+			LDFLAGS="$(LDFLAGS)" \
+			--with-system-zlib \
+			--with-system-bzlib \
+			--with-xz \
+			--enable-library \
+			--enable-fuse \
+			--enable-dav \
+			--disable-fuse-test)
+
+override_dh_install:
+	dh_install
+	# Move extfs README
+	-mkdir -p $$(pwd)/debian/avfs/usr/share/doc/avfs
+	-mv $$(pwd)/debian/avfs/usr/share/avfs/extfs/README $$(pwd)/debian/avfs/usr/share/doc/avfs/README.extfs

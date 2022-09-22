@@ -1,0 +1,13 @@
+diff --git a/configure.ac b/configure.ac
+index 3d95d7a..46215ca 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -286,7 +286,7 @@ if test -z "`echo "$LIBS"|grep pthread`"; then
+ 	LIBS="$LIBS -pthread"
+ fi
+ 
+-moduledir='${libdir}/avfs'
++moduledir='${datarootdir}/avfs'
+ 
+ AC_SUBST(moduledir)
+ 

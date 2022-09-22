@@ -1,0 +1,93 @@
+This package was debianized by Michael Meskes <meskes@debian.org> on
+Tue, 18 Mar 2008 20:48:39 +0100.
+
+It was downloaded from http://sourceforge.net/projects/avf
+
+Upstream Authors: 
+
+	Miklos Szeredi <mszeredi@inf.bme.hu>
+	Ralf Hoffmann <ralf@boomerangsworld.de>
+
+Copyright: 
+
+    Copyright (C) 1998-2008 Miklos Szeredi and Ralf Hoffmann
+
+License:
+
+    This package is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation.
+
+    This package is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this package; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+On Debian systems, the complete text of the GNU General
+Public License can be found in `/usr/share/common-licenses/GPL'.
+
+libneon: Copyright (C) 1999-2001, Joe Orton <joe@light.plus.com>
+	 Copyright (C) 1995, 1996, 1997 Free Software Foundation, Inc.
+	 Copyright (C) 1999-2000 Tommi Komulainen <Tommi.Komulainen@iki.fi>
+	 Copyright (c) 1999 Eric S. Raymond
+	 LGPL
+
+On Debian systems, the complete text of the GNU General Lesser
+Public License can be found in `/usr/share/common-licenses/LGPL'.
+
+bzlib:	Copyright (C) 1996-2005 Julian R Seward
+	BSD 
+
+zlib: Copyright (C) 1995-2002 Jean-loup Gailly and Mark Adler
+
+  This software is provided 'as-is', without any express or implied
+  warranty.  In no event will the authors be held liable for any damages
+  arising from the use of this software.
+
+  Permission is granted to anyone to use this software for any purpose,
+  including commercial applications, and to alter it and redistribute it
+  freely, subject to the following restrictions:
+
+  1. The origin of this software must not be misrepresented; you must not
+     claim that you wrote the original software. If you use this software
+     in a product, an acknowledgment in the product documentation would be
+     appreciated but is not required.
+  2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+  3. This notice may not be removed or altered from any source distribution.
+
+modules/dav_ls.c is partly Copyright (C) 2000-2001, Joe Orton <joe@orton.demon.co.uk>: GPL
+modules/urar.c is partly Copyright (C) 1998 David Hanak (dhanak@inf.bme.hu): GPL
+preload/leak.c is (c) 1999 Erwin S. Andreasen <erwin@andreasen.org>: public domain
+extfs/ulha.in is Copyright (C) 1996, 1997 Joseph M. Hinkle: GPL
+extfs/u7z.in is Copyright (C) 2004 Sergiy Niskorodov (sgh at ukrpost dot net): GPL
+extfs/uarj.in is (C) 2002 ARJ Software Russia, Viatcheslav Odintsov: as part of mc GPL
+extfs/uzip.in is (C) 2000-2001  Oskar Liljeblad <osk@hem.passagen.se>: as part of mc GPL
+extfs/urar.in is (C) 1996 andrey joukov, 1999 christian.gennerat@alcatel.fr, 2000 Andrew V. Samoilov <sav@bcs.zp.ua>: as part of mc GPL
+
+The following files are (C) Piotr Roszatycki <dexter@debian.org> and placed under GPL:
+extfs/apt.in
+extfs/deba.in
+extfs/debd.in
+extfs/dpkg.in
+
+The following files are Copyright (C) Free Software Foundation, Inc. and placed under GPL:
+modules/gtar.h
+extfs/rpms.in
+extfs/rpm
+extfs/trpm
+extfs/audio.in
+extfs/deb.in
+extfs/ucpio
+extfs/uar.in
+extfs/bpp
+all files resulting from autotools usage
+
+The Debian packaging is Copyright (C) 2008-2010, Michael Meskes
+<meskes@debian.org> and is licensed under the GPL, see
+`/usr/share/common-licenses/GPL'.
+
