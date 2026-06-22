@@ -488,6 +488,9 @@ int av_parse_ls(struct lscache *cache, const char *line,
         /* This is for an extra ACL attribute (HP-UX) */
         if (*line == '+')
             line++;
+        /* This is for an extra SElinux attribute */
+        if (*line == '.')
+            line++;
     }
 
     p_copy = av_strdup(line);

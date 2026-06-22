@@ -13,6 +13,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <pthread.h>
+#include <time.h>
 
 /* The following 3 includes are not needed except for some
  * systems which redefine open to open64 etc. (namely Sun)
@@ -39,7 +40,7 @@ typedef avuint  avuid_t;
 typedef avuint  avgid_t;
 typedef avuquad avino_t;
 typedef avquad  avoff_t;
-typedef long    avtime_t;
+typedef time_t  avtime_t;
 typedef avuint  avsize_t;
 typedef int     avssize_t;
 typedef avulong avblksize_t;

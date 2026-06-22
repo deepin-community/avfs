@@ -4,21 +4,21 @@
 # companion program to mountavfs
 # will check to see if avfsd is mounted and then
 # unmount using fusermount.
-# last updated 2010-09-12
 
 # suggested use: in a logout script or wm exit routine
 
-if [ -d "$AVFSBASE" ]; then
-    MntDir="$AVFSBASE"
-else
-    MntDir="${HOME}/.avfs"
+# if unset or not pointing to a directory, revert to default mount point
+if [ ! -d "$AVFSBASE" ]; then
+    AVFSBASE="${HOME}/.avfs"
 fi
 
-grep -qE "${MntDir}.*avfsd" /proc/mounts && {
-   echo unMounting AVFS on $MntDir...
+grep -qE "avfsd ${AVFSBASE}" /proc/mounts && {
+   echo unMounting AVFS on $AVFSBASE...
    if type -p fusermount > /dev/null 2>&1 ; then
-      fusermount -u -z "$MntDir"
+      fusermount -u -z "$AVFSBASE"
    else
-      umount -l "$MntDir"
+      umount -l "$AVFSBASE"
    fi
+
+   unset AVFSBASE
 }

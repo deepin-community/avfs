@@ -1,3 +1,19 @@
+Changes from 1.1.5 to 1.2.0 (2025-02-20)
+  - when files behind extfs based archives changed, the inner file
+    representation is updated too.
+  - supported 64 bit time_t on all platforms (which makes the ABI
+    incompatible with 1.1.x)
+  - fixed issue with zip64 archives which could not be opened if
+    some header values indicated that only zip64 extended header
+    should be used.
+
+Changes from 1.1.4 to 1.1.5 (2023-02-18)
+  - added support for ls output with SElinux attributes.
+  - improved handling of xz memory limit to allow detecting when the
+    limit is reached and to increase it on demand.
+  - added basic decoding of tar's extended headers to support longer
+	file names.
+
 Changes from 1.1.3 to 1.1.4 (2021-04-04)
   - add support for lzip
 

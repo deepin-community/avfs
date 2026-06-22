@@ -4,27 +4,30 @@
 # companion program to umountavfs
 # will check to see if avfs is mounted and then
 # load the avfsd daemon which will mount avfs.
-# last updated 2010-09-12
+#
+# you can source this file in the login script to automatically make
+# AVFS available. The base directory mount point is exported as
+# AVFSBASE.
+#
 
-# suggested use: in a login script or wm startup routine
-
-if [ -d "$AVFSBASE" ]; then
-    MntDir="$AVFSBASE"
-else
-    MntDir=${HOME}/.avfs
+# if unset or not pointing to a directory, revert to default mount point
+if [ ! -d "$AVFSBASE" ]; then
+    AVFSBASE="${HOME}/.avfs"
 fi
 
-grep -qE "avfsd ${MntDir}" /proc/mounts || {
-   if [ ! -e "$MntDir" ]; then
-      mkdir -p "$MntDir"
+grep -qE "avfsd ${AVFSBASE}" /proc/mounts || {
+   if [ ! -e "$AVFSBASE" ]; then
+      mkdir -p "$AVFSBASE"
    fi
-   if [ ! -d "$MntDir" ]; then
-      echo "$MntDir exists but is no directory"
+   if [ ! -d "$AVFSBASE" ]; then
+      echo "$AVFSBASE exists but is no directory"
       exit 1
    fi
-   echo Mounting AVFS on $MntDir...
-   avfsd "$MntDir"
-   while test ! -e "$MntDir/#avfsstat/symlink_rewrite"
+   echo Mounting AVFS on $AVFSBASE...
+   avfsd "$AVFSBASE"
+   while test ! -e "$AVFSBASE/#avfsstat/symlink_rewrite"
    do sleep 0.5 ; done
-   echo "1" >| "$MntDir/#avfsstat/symlink_rewrite"
+   echo "1" >| "$AVFSBASE/#avfsstat/symlink_rewrite"
+
+   export AVFSBASE
 }

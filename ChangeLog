@@ -1,3 +1,51 @@
+2025-02-20  Ralf Hoffmann <ralf@boomerangsworld.de>
+
+	* bump version to 1.2.0
+
+2025-01-28  Ralf Hoffmann <ralf@boomerangsworld.de>
+
+	* fix decoding zip64 archives when some fields on regular header
+	are ff..ff
+
+2025-01-25  Ralf Hoffmann <ralf@boomerangsworld.de>
+
+	* add support for 64 bit time_t (also on 32-bit systems)
+	(patch from Tobias Quathamer)
+	* fix compilation when atomic functions are only available with
+	libatomic
+	(patch from Tobias Quathamer)
+
+2024-01-14  Ralf Hoffmann <ralf@boomerangsworld.de>
+
+	* extfs: replace temporary files from extfs archives if the
+	basefile has been changed or modified. Otherwise an inner
+	file would contain invalid old data from the previous basefile.
+
+2023-04-13  Ralf Hoffmann <ralf@boomerangsworld.de>
+
+	* virtual: add support in virt_readdir for longer names than
+	NAME_MAX
+
+2023-02-18  Ralf Hoffmann <ralf@boomerangsworld.de>
+
+	* bump version to 1.1.5
+
+2023-01-29  Ralf Hoffmann <ralf@boomerangsworld.de>
+
+	* utar: add basic decoding of extended headers to support longer
+	file names
+
+2022-08-24  Ralf Hoffmann <ralf@boomerangsworld.de>
+
+	* xz: improve handling of xz memory limit. The error code
+	indicates when the limit has been reached, special file
+	xz_memlimit in #avfsstat/ allows to get/set current limit
+
+2021-04-17  Ralf Hoffmann <ralf@boomerangsworld.de>
+
+	* add support for ls output with SElinux attributes
+	  (patch from Bert Cosemans)
+
 2021-04-04  Ralf Hoffmann <ralf@boomerangsworld.de>
 
 	* add support for lzip (ulzip module for .lz files)

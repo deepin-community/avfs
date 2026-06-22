@@ -686,6 +686,7 @@ static int parse_rar5_time_header(vfile *vf,
     if (flags & RAR5_HEADER_FILE_HEADER_EXTRA_FILE_TIME_FLAGS_MTIME_PRESENT) {
         if (is_unix) {
             avuint mtime;
+            // unix timestamps are 32bit (Y2106)
             READ_UINT32(vf, &mtime, crc);
             ei->mtime.sec = mtime;
         } else {
@@ -698,6 +699,7 @@ static int parse_rar5_time_header(vfile *vf,
     if (flags & RAR5_HEADER_FILE_HEADER_EXTRA_FILE_TIME_FLAGS_CTIME_PRESENT) {
         if (is_unix) {
             avuint ctime;
+            // unix timestamps are 32bit (Y2106)
             READ_UINT32(vf, &ctime, crc);
             ei->ctime.sec = ctime;
         } else {
@@ -710,6 +712,7 @@ static int parse_rar5_time_header(vfile *vf,
     if (flags & RAR5_HEADER_FILE_HEADER_EXTRA_FILE_TIME_FLAGS_ATIME_PRESENT) {
         if (is_unix) {
             avuint atime;
+            // unix timestamps are 32bit (Y2106)
             READ_UINT32(vf, &atime, crc);
             ei->atime.sec = atime;
         } else {
@@ -722,16 +725,19 @@ static int parse_rar5_time_header(vfile *vf,
     if (is_unix && (flags & RAR5_HEADER_FILE_HEADER_EXTRA_FILE_TIME_FLAGS_NSEC_PRECISION)) {
         if (flags & RAR5_HEADER_FILE_HEADER_EXTRA_FILE_TIME_FLAGS_MTIME_PRESENT) {
             avuint t;
+            // unix timestamps are 32bit (Y2106)
             READ_UINT32(vf, &t, crc);
             ei->mtime.nsec = t;
         }
         if (flags & RAR5_HEADER_FILE_HEADER_EXTRA_FILE_TIME_FLAGS_CTIME_PRESENT) {
             avuint t;
+            // unix timestamps are 32bit (Y2106)
             READ_UINT32(vf, &t, crc);
             ei->ctime.nsec = t;
         }
         if (flags & RAR5_HEADER_FILE_HEADER_EXTRA_FILE_TIME_FLAGS_ATIME_PRESENT) {
             avuint t;
+            // unix timestamps are 32bit (Y2106)
             READ_UINT32(vf, &t, crc);
             ei->atime.nsec = t;
         }
@@ -809,6 +815,8 @@ static int parse_rar5_file_header(vfile *vf, struct archive *arch,
     /* uint32? mtime */
     if (file_flags & RAR5_HEADER_FILE_HEADER_FILE_FLAGS_UNIX_TIME_PRESENT) {
         avuint mtime;
+
+        // unix timestamps are 32bit (Y2106)
         READ_UINT32(vf, &mtime, crc);
 
         ei.mtime.sec = mtime;

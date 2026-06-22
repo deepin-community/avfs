@@ -25,7 +25,7 @@ int main( int argc, char **argv )
     struct stat stat_buf;
 
     if ( virt_stat( argv[1], &stat_buf ) != 0 ) {
-        printf( "Could not stat %s\n", argv[1] );
+        printf( "Could not stat %s (%s)\n", argv[1], strerror( errno ) );
     } else {
         printf( "Size: %lu\n", stat_buf.st_size );
     }
@@ -63,6 +63,8 @@ int main( int argc, char **argv )
         }
 
         virt_close( fd );
+    } else {
+        printf( "Could not open %s (%s)\n", argv[1], strerror( errno ) );
     }
     return 0;
 }

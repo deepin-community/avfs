@@ -16,6 +16,7 @@
 #include <utime.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <stddef.h>
 
 static int oflags_to_avfs(int flags)
 {
@@ -203,8 +204,14 @@ int virt_lstat(const char *path, struct stat *buf)
 
 typedef struct {
     int fd;
-    struct dirent entry;
-    char _trail[NAME_MAX + 1];
+    union {
+        struct dirent entry;
+
+        /* some file systems (CIFS?) might return more then NAME_MAX bytes (for utf8 code points instead?). Since the
+           size of d_name can be anything between 0 and NAME_MAX, we carefully chose a value for extra space so it can
+           fit a dirent struct plus NAME_MAX utf8 code points */
+        char extra_name[ sizeof( struct dirent ) + 4 * NAME_MAX + 1];  
+    } data;
 } AVDIR;
 
 DIR *virt_opendir(const char *path)
@@ -268,21 +275,32 @@ void virt_rewinddir(DIR *dirp)
     errno = errno_save;
 }
 
-#define AVFS_DIR_RECLEN 256 /* just an arbitary number */
-
-static void avdirent_to_dirent(struct dirent *ent, struct avdirent *avent,
-			       avoff_t n)
+static void avdirent_to_avdir(AVDIR *dp, const struct avdirent *avent,
+                              avoff_t n)
 {
+    struct dirent *ent = &dp->data.entry;
+    const avoff_t available_name_length_wo_null = sizeof( dp->data ) - offsetof( typeof( *ent ), d_name ) - 1;
+
+    /* use the union to access the name field at the correct offset
+       within the dirent struct (makes compiler happy since we
+       actually write beyond d_name[256] */
+    char *d_name = dp->data.extra_name;
+    d_name += offsetof( typeof( *ent ), d_name );
+
     ent->d_ino = avent->ino;
 #ifdef HAVE_D_OFF
-    ent->d_off = n * AVFS_DIR_RECLEN; 
+    /* d_off is not used so just make it unique */
+    ent->d_off = n * sizeof( *dp );
 #endif
-    ent->d_reclen = AVFS_DIR_RECLEN;
+
+    /* the record length might be larger than the dirent structure so
+       give the number including our trailing bytes */
+    ent->d_reclen = sizeof( *dp ) - offsetof( typeof( *dp ), data.entry );
 #ifdef HAVE_D_TYPE
     ent->d_type = avent->type;
 #endif
-    strncpy(ent->d_name, avent->name, NAME_MAX);
-    ent->d_name[NAME_MAX] = '\0';
+    strncpy(d_name, avent->name, available_name_length_wo_null);
+    d_name[available_name_length_wo_null] = '\0';
 }
 
 struct dirent *virt_readdir(DIR *dirp)
@@ -306,11 +324,11 @@ struct dirent *virt_readdir(DIR *dirp)
         return NULL;
     }
 
-    avdirent_to_dirent(&dp->entry, &buf, n);
+    avdirent_to_avdir(dp, &buf, n);
     av_free(buf.name);
 
     errno = errno_save;
-    return &dp->entry;
+    return &dp->data.entry;
 }
 
 

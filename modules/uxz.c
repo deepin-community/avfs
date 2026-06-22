@@ -14,6 +14,9 @@
 #include "filecache.h"
 #include "oper.h"
 #include "version.h"
+#include "internal.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 struct xznode {
     struct avstat sig;
@@ -227,11 +230,60 @@ static int xz_getattr(vfile *vf, struct avstat *buf, int attrmask)
 
 extern int av_init_module_uxz(struct vmodule *module);
 
+static int xz_memlimit_get(struct entry *ent, const char *param, char **retp)
+{
+    char buf[32];
+    
+    snprintf(buf, sizeof(buf), "%lu\n", av_xzfile_get_memlimit());
+
+    *retp = av_strdup(buf);
+    return 0;
+}
+
+static int xz_memlimit_set(struct entry *ent, const char *param, const char *val)
+{
+    avoff_t offval;
+    char *end;
+
+    if (!val[0]) {
+        offval = 0;
+    } else {
+        offval = strtoll(val, &end, 0);
+        if (end == val) {
+            return -EINVAL;
+        }
+        if (*end == '\n') {
+            end ++;
+        }
+        if (*end != '\0') {
+            return -EINVAL;
+        }
+        if (offval < 0) {
+            return -EINVAL;
+        }
+    }
+
+    av_xzfile_set_memlimit(offval);
+
+    return 0;
+}
+
+static int xz_memlimit_hit_get(struct entry *ent, const char *param, char **retp)
+{
+    char buf[32];
+    
+    snprintf(buf, sizeof(buf), "%lu\n", av_xzfile_get_memlimit_hit());
+
+    *retp = av_strdup(buf);
+    return 0;
+}
+
 int av_init_module_uxz(struct vmodule *module)
 {
     int res;
     struct avfs *avfs;
     struct ext_info uxz_exts[5];
+    struct statefile statf = { 0 };
 
     uxz_exts[0].from = ".tar.xz",  uxz_exts[0].to = ".tar";
     uxz_exts[1].from = ".txz",  uxz_exts[1].to = ".tar";
@@ -251,6 +303,14 @@ int av_init_module_uxz(struct vmodule *module)
     avfs->getattr  = xz_getattr;
 
     av_add_avfs(avfs);
+
+    statf.get = xz_memlimit_get;
+    statf.set = xz_memlimit_set;
+    av_avfsstat_register("xz_memlimit", &statf);
+
+    statf.get = xz_memlimit_hit_get;
+    statf.set = NULL;
+    av_avfsstat_register("xz_memlimit_hit", &statf);
 
     return 0;
 }

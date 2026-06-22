@@ -1,7 +1,7 @@
 This package was debianized by Michael Meskes <meskes@debian.org> on
 Tue, 18 Mar 2008 20:48:39 +0100.
 
-It was downloaded from http://sourceforge.net/projects/avf
+It was downloaded from https://sourceforge.net/projects/avf
 
 Upstream Authors: 
 
@@ -10,7 +10,7 @@ Upstream Authors:
 
 Copyright: 
 
-    Copyright (C) 1998-2008 Miklos Szeredi and Ralf Hoffmann
+    Copyright (C) 1998-2025 Miklos Szeredi and Ralf Hoffmann
 
 License:
 
@@ -87,7 +87,9 @@ extfs/uar.in
 extfs/bpp
 all files resulting from autotools usage
 
-The Debian packaging is Copyright (C) 2008-2010, Michael Meskes
+The Debian packaging is Copyright (C) 2008-2025, Michael Meskes
 <meskes@debian.org> and is licensed under the GPL, see
 `/usr/share/common-licenses/GPL'.
 
+The Debian packaging is Copyright (C) 2025, Dr. Tobias Quathamer
+<toddy@debian.org> and is licensed under the GPL.

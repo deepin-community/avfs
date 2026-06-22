@@ -1,10 +1,11 @@
---- avfs/scripts/umountavfs.orig	2012-07-11 10:19:28.000000000 +0200
-+++ avfs/scripts/umountavfs		2012-07-11 10:32:38.404835715 +0200
-@@ -22,3 +22,7 @@
-       umount -l "$MntDir"
+--- a/scripts/umountavfs
++++ b/scripts/umountavfs
+@@ -20,5 +20,8 @@
+       umount -l "$AVFSBASE"
     fi
+ 
++   # Remove directory again
++   rmdir ${AVFSBASE}
++
+    unset AVFSBASE
  }
-+
-+# Remove directory again
-+rmdir ${MntDir}
-+

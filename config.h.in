@@ -1,6 +1,6 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* Define to 1 if you have the `atoll' function. */
+/* Define to 1 if you have the 'atoll' function. */
 #undef HAVE_ATOLL
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
@@ -12,22 +12,31 @@
 /* Define if your struct direntry has d_type */
 #undef HAVE_D_TYPE
 
-/* Define to 1 if you have the `getgrgid_r' function. */
+/* Define to 1 if you have the 'getgrgid_r' function. */
 #undef HAVE_GETGRGID_R
 
-/* Define to 1 if you have the `getgrnam_r' function. */
+/* Define to 1 if you have the 'getgrnam_r' function. */
 #undef HAVE_GETGRNAM_R
 
-/* Define to 1 if you have the `getpwnam_r' function. */
+/* Define to 1 if you have the 'getpwnam_r' function. */
 #undef HAVE_GETPWNAM_R
 
-/* Define to 1 if you have the `getpwuid_r' function. */
+/* Define to 1 if you have the 'getpwuid_r' function. */
 #undef HAVE_GETPWUID_R
+
+/* Define to 1 if you have the 'iconv' function. */
+#undef HAVE_ICONV
+
+/* Define to 1 if you have the <iconv.h> header file. */
+#undef HAVE_ICONV_H
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
-/* Define to 1 if you have the `dl' library (-ldl). */
+/* Define to 1 if you have the <langinfo.h> header file. */
+#undef HAVE_LANGINFO_H
+
+/* Define to 1 if you have the 'dl' library (-ldl). */
 #undef HAVE_LIBDL
 
 /* Define to 1 if your system has libfuse installed */
@@ -42,7 +51,7 @@
 /* Define to 1 if your system has libneon installed */
 #undef HAVE_LIBNEON
 
-/* Define to 1 if you have the `pthread' library (-lpthread). */
+/* Define to 1 if you have the 'pthread' library (-lpthread). */
 #undef HAVE_LIBPTHREAD
 
 /* Define to 1 if your system has libzstd installed */
@@ -51,19 +60,22 @@
 /* Define to 1 if you have the <lzlib.h> header file. */
 #undef HAVE_LZLIB_H
 
-/* Define to 1 if you have the <memory.h> header file. */
-#undef HAVE_MEMORY_H
-
-/* Define to 1 if you have the `mkdtemp' function. */
+/* Define to 1 if you have the 'mkdtemp' function. */
 #undef HAVE_MKDTEMP
+
+/* Define to 1 if you have the 'nl_langinfo' function. */
+#undef HAVE_NL_LANGINFO
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
 
+/* Define to 1 if you have the <stdio.h> header file. */
+#undef HAVE_STDIO_H
+
 /* Define to 1 if you have the <stdlib.h> header file. */
 #undef HAVE_STDLIB_H
 
-/* Define to 1 if you have the `strcasecmp' function. */
+/* Define to 1 if you have the 'strcasecmp' function. */
 #undef HAVE_STRCASECMP
 
 /* Define to 1 if you have the <strings.h> header file. */
@@ -72,7 +84,7 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
-/* Define to 1 if you have the `strncasecmp' function. */
+/* Define to 1 if you have the 'strncasecmp' function. */
 #undef HAVE_STRNCASECMP
 
 /* Define to 1 if you have the <sys/statvfs.h> header file. */
@@ -87,17 +99,17 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
-/* Define to 1 if you have the `vsnprintf' function. */
+/* Define to 1 if you have the 'vsnprintf' function. */
 #undef HAVE_VSNPRINTF
 
 /* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 
-/* Define to 1 if `major', `minor', and `makedev' are declared in <mkdev.h>.
+/* Define to 1 if 'major', 'minor', and 'makedev' are declared in <mkdev.h>.
    */
 #undef MAJOR_IN_MKDEV
 
-/* Define to 1 if `major', `minor', and `makedev' are declared in
+/* Define to 1 if 'major', 'minor', and 'makedev' are declared in
    <sysmacros.h>. */
 #undef MAJOR_IN_SYSMACROS
 
@@ -122,7 +134,9 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* Define to 1 if you have the ANSI C header files. */
+/* Define to 1 if all of the C89 standard headers exist (not just the ones
+   required in a freestanding environment). This macro is provided for
+   backward compatibility; new code need not use it. */
 #undef STDC_HEADERS
 
 /* Define if you want to use system bzlib library */
@@ -134,13 +148,14 @@
 /* Version number of package */
 #undef VERSION
 
-/* Enable large inode numbers on Mac OS X 10.5.  */
-#ifndef _DARWIN_USE_64_BIT_INODE
-# define _DARWIN_USE_64_BIT_INODE 1
-#endif
-
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS
 
-/* Define for large files, on AIX-style hosts. */
+/* Define to 1 on platforms where this makes off_t a 64-bit type. */
 #undef _LARGE_FILES
+
+/* Number of bits in time_t, on hosts where this is settable. */
+#undef _TIME_BITS
+
+/* Define to 1 on platforms where this makes time_t a 64-bit type. */
+#undef __MINGW_USE_VC2005_COMPAT

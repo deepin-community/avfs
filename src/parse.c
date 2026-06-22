@@ -824,7 +824,10 @@ int av_get_ventry(const char *path, int resolvelast, ventry **resp)
 
     /* no ventry so force localfile to be able to create files with
        the magic character inside filename */
-    if(res < 0) {
+
+    /* only if we got explicit NOENT error, for other errors assume
+       some handler tried to handle it but failed to some reason */
+    if(res == -ENOENT) {
         av_free(copypath);
         copypath = av_strdup(path);
         av_free_ventry(ps.ve);

@@ -139,6 +139,7 @@ static int gz_read_header(vfile *vf, struct gznode *nod)
         return -EIO;
     }
 
+    // gzips max time is Y2106
     nod->mtime = QBYTE(buf + 4);
   
     /* Ignore bytes 8 and 9 */

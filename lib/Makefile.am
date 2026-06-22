@@ -14,7 +14,7 @@ noinst_LTLIBRARIES = libavfs_static.la
 ##     other symbols too
 ##     Possible solution: Also build a static library which doesn't get installed
 
-libavfs_la_LDFLAGS = @VERSIONSCRIPT_OPTS@ -version-info 0:2:0
+libavfs_la_LDFLAGS = @VERSIONSCRIPT_OPTS@ -version-info 1:0:0
 libavfs_la_LIBADD = ../src/libavfscore.la ../modules/libmodules.la @LIBZ@ @LIBBZ2@ @LIBDAV@
 libavfs_la_SOURCES = 
 

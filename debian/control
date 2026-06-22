@@ -1,18 +1,21 @@
 Source: avfs
 Priority: optional
 Maintainer: Michael Meskes <meskes@debian.org>
+Uploaders: Dr. Tobias Quathamer <toddy@debian.org>
 Build-Depends: debhelper-compat (= 13), libfuse-dev, quilt (>= 0.40),
-	       pkg-config, unzip, liblzma-dev, zlib1g-dev, libbz2-dev,
+	       pkgconf, unzip, liblzma-dev, zlib1g-dev, libbz2-dev,
 	       libzstd-dev, libneon27-gnutls-dev|libneon27-dev
-Standards-Version: 4.5.0
+Standards-Version: 4.7.1
 Rules-Requires-Root: no
 Section: utils
-Homepage: http://sourceforge.net/projects/avf
+Homepage: https://avf.sourceforge.net/
+Vcs-Browser: https://salsa.debian.org/debian/avfs
+Vcs-Git: https://salsa.debian.org/debian/avfs.git
 
 Package: avfs
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, fuse [linux-any] | fuse4bsd [kfreebsd-any]
-Suggests: unzip, zip, arj, lha, rpm, p7zip|p7zip-full, cdparanoia, wget, dar
+Depends: ${shlibs:Depends}, ${misc:Depends}, fuse3 (>= 3.10.1-3) [linux-any] | fuse (<< 3) [linux-any] | fuse4bsd [kfreebsd-any]
+Suggests: unzip, zip, arj, lha, rpm, 7zip, cdparanoia, wget, dar
 Description: virtual filesystem to access archives, disk images, remote locations
  This FUSE-base VFS (Virtual FileSystem) enables all programs to look inside
  archived or compressed files, or access remote files without recompiling the

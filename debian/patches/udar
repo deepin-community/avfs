@@ -1,5 +1,5 @@
---- avfs/extfs/udar	2020-08-24 10:55:08.146960894 +0200
-+++ avfs/extfs/udar	2020-08-24 11:11:06.847145338 +0200
+--- a/extfs/udar
++++ b/extfs/udar
 @@ -19,7 +19,7 @@
  #  - hard links (h) and special dar file type (e) are handled
  #    as regular files

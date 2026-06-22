@@ -22,6 +22,7 @@
 #include "cache.h"
 #include "exit.h"
 #include "tmpfile.h"
+#include "operutil.h"
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -38,6 +39,9 @@ struct extfsnode {
 
 struct extfscacheentry {
     char *tmpfile;
+    avdev_t          basefile_dev;
+    avino_t          basefile_ino;
+    avtimestruc_t    basefile_mtime;
 };
 
 struct extfsfile {
@@ -322,15 +326,23 @@ static int extfs_open(ventry *ve, struct archfile *fil)
     int fd;
     char *key;
     struct extfscacheentry *cent;
+    struct avstat basefile_stat;
     
     /* get key for extfscache */
     res = get_key_for_node(ve, fil, &key);
     if(res < 0)
         return res;
 
+    res = av_file_getattr(fil->basefile, &basefile_stat, AVA_MTIME | AVA_DEV | AVA_INO);
+    if (res < 0) return res;
+
     AV_LOCK(enod->lock);
     cent = av_cache2_get(key);
-    if (cent == NULL) {
+    if (cent == NULL ||
+        cent->basefile_dev != basefile_stat.dev ||
+        cent->basefile_ino != basefile_stat.ino ||
+        cent->basefile_mtime.sec != basefile_stat.mtime.sec ||
+        cent->basefile_mtime.nsec != basefile_stat.mtime.nsec) {
         char *tmpfile;
         avoff_t tmpsize;
 
@@ -352,6 +364,9 @@ static int extfs_open(ventry *ve, struct archfile *fil)
 	/* ...create an object to store tmpfile */
 	AV_NEW_OBJ(cent, extfscacheentry_delete);
 	cent->tmpfile = tmpfile;
+	cent->basefile_dev = basefile_stat.dev;
+	cent->basefile_ino = basefile_stat.ino;
+	cent->basefile_mtime = basefile_stat.mtime;
 
 	/* put it in the extfscache */
 	av_cache2_set(cent,key);

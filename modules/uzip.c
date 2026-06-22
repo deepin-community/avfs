@@ -16,8 +16,8 @@
 #include "version.h"
 
 struct ecrec {
-    avushort this_disk;
-    avushort cdir_disk;
+    avuint this_disk;
+    avuint cdir_disk;
     avushort this_entries;
     avushort total_entries;
     avuint cdir_size;
@@ -90,7 +90,7 @@ struct cdirentry {
     avushort fname_len;
     avushort extra_len;
     avushort comment_len;
-    avushort start_disk;
+    avuint start_disk;
     avushort int_attr;
     avuint attr;
     avuquad file_off;
@@ -453,6 +453,24 @@ static int parse_extra_header(vfile *vf, avoff_t pos,
                     pos += size;
                 }
             }
+
+            if(cent && (avushort)cent->start_disk == 0xffff) {
+                if(size >= 4) {
+                    char buf[4];
+                    int res = av_pread_all(vf, buf, 4, pos);
+
+                    if(res < 0) {
+                        return res;
+                    }
+
+                    cent->start_disk = QBYTE(buf);
+
+                    size -= 4;
+                    pos += 4;
+                } else {
+                    pos += size;
+                }
+            }
         } else {
             pos += size;
         }
@@ -591,7 +609,9 @@ static int find_and_validate_z64_ecdl(vfile *vf, struct archive *arch, struct ec
         return ecdl_pos;
     }
 
-    if(ecdl->ecdir_disk != ecdl->ecd->this_disk) {
+    // unless disk is set to ffff in old header, it should be the same
+    // as in the extended header
+    if(ecdl->ecd->this_disk != 0xffff && ecdl->ecdir_disk != ecdl->ecd->this_disk) {
         return -EIO;
     }
 
@@ -643,6 +663,15 @@ static int read_zip64file(vfile *vf, struct archive *arch, struct ecrec *ecrec,
         return 0;
     }
   
+    // overwrite some variables from zip64 header
+    if (ecrec->cdir_disk == 0xffff) {
+        ecrec->cdir_disk = z64_ecd.cdir_disk;
+    }
+
+    if (ecrec->this_disk == 0xffff) {
+        ecrec->this_disk = z64_ecd.this_disk;
+    }
+
     cdir_pos = z64_ecd.cdir_off + extra_bytes;
 
     for(nument = 0; nument < z64_ecd.total_entries; nument++) {

@@ -1,8 +1,8 @@
 dnl Process this file with autoconf to produce a configure script.
 
 define(AVFS_MAJOR,[1])
-define(AVFS_MINOR,[1])
-define(AVFS_PATCH,[4])
+define(AVFS_MINOR,[2])
+define(AVFS_PATCH,[0])
 define(AVFS_COMMENT,[])
 
 define(AVFS_VERSION,AVFS_MAJOR[.]AVFS_MINOR[.]AVFS_PATCH[]AVFS_COMMENT)
@@ -224,6 +224,7 @@ fi
 AC_SEARCH_LIBS(nanosleep, posix4)
 AC_SEARCH_LIBS(gethostbyname, nsl)
 AC_SEARCH_LIBS(socket, socket inet)
+AC_SEARCH_LIBS(__atomic_fetch_add_8, atomic)
 
 neon_found=no
 if test "$dav" = yes; then
@@ -246,6 +247,11 @@ else
   DAV_LS=
   LIBDAV=
 fi
+
+AC_CHECK_HEADERS(iconv.h)
+AC_CHECK_HEADERS(langinfo.h)
+AC_CHECK_FUNCS(iconv)
+AC_CHECK_FUNCS(nl_langinfo)
 
 AM_CONDITIONAL(BUILD_DAVSUPPORT, test x$neon_found = xyes)
 

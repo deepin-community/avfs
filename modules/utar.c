@@ -1,7 +1,7 @@
 /*  
     AVFS: A Virtual File System Library
     Copyright (C) 1998  Miklos Szeredi <miklos@szeredi.hu>
-    Copyright (C) 2007,2013  Ralf Hoffmann (ralf@boomerangsworld.de)
+    Copyright (C) 2007,2013,2023  Ralf Hoffmann (ralf@boomerangsworld.de)
 
     Based on the GNU tar sources (C) Free Software Foundation
     
@@ -11,12 +11,21 @@
     TAR module
 */
 
+#include "config.h"
 #include "gtar.h"
 #include "archive.h"
 #include "oper.h"
 #include "ugid.h"
 #include "version.h"
 #include <limits.h>
+#include <inttypes.h>
+
+#ifdef HAVE_ICONV_H
+#  include <iconv.h>
+#endif
+#ifdef HAVE_LANGINFO_H
+#  include <langinfo.h>
+#endif
 
 #define COPYBUFSIZE 16384
 #define BIGBLOCKSIZE (20 * BLOCKSIZE)
@@ -29,6 +38,15 @@
 /* FIXME: Not any more: inode udata is used for saving filenames temporarily at archive creation */
 
 
+struct xheader_data {
+    char *path;
+    char *linkname;
+
+    avoff_t size;
+
+    unsigned short size_set:1;
+};
+
 struct tar_entinfo {
     char *name;
     char *linkname;
@@ -36,6 +54,8 @@ struct tar_entinfo {
     avoff_t datastart;
 
     union block header;
+
+    struct xheader_data xhdr;
 };
 
 struct sp_array
@@ -58,6 +78,52 @@ struct tarnode {
 
 #define ISSPACE(x) isspace(x)
 #define ISODIGIT(x) ((x) >= '0' && (x) < '8')
+
+static struct {
+#if defined(HAVE_NL_LANGINFO) && defined(HAVE_ICONV)
+    iconv_t iconv_handle;
+#endif
+    pthread_mutex_t iconv_lock;
+} utf8_convert;
+
+static char *convert_from_utf8(const char *str)
+{
+    char *res = NULL;
+
+    if (!str) return NULL;
+
+    pthread_mutex_lock(&utf8_convert.iconv_lock);
+
+#if defined(HAVE_NL_LANGINFO) && defined(HAVE_ICONV)
+    if (utf8_convert.iconv_handle == (iconv_t)-1) {
+        res = av_strdup(str);
+    } else {
+        avoff_t maxlength = strlen(str) * MB_LEN_MAX + 1;
+        res = av_malloc(maxlength);
+
+        if (res) {
+            char *in_str = (char *)str;
+            char *out_str = res;
+            size_t in_len = strlen(str);
+            size_t out_len = maxlength - 1;
+            if (iconv(utf8_convert.iconv_handle,
+                      &in_str, &in_len,
+                      &out_str, &out_len) != 0) {
+                av_free(res);
+                res = NULL;
+            } else {
+                res[maxlength - 1 - out_len] = '\0';
+            }
+        }
+    }
+#else
+    res = av_strdup(str);
+#endif
+
+    pthread_mutex_unlock(&utf8_convert.iconv_lock);
+
+    return res;
+}
 
 /*------------------------------------------------------------------------.
 | Quick and dirty octal conversion.  Result is -1 if the field is invalid |
@@ -277,6 +343,164 @@ static enum archive_format get_header_format( union block *header )
     return f;
 }
 
+struct xheader
+{
+  avoff_t size;
+  char *buffer;
+};
+
+static int xheader_read(vfile *vf,
+                        struct xheader *xhdr,
+                        union block *header,
+                        avoff_t size)
+{
+    size_t j = 0;
+    union block data_block = *header;
+
+    if (size < 0) {
+        size = 0;
+    }
+
+    size += BLOCKSIZE;
+    xhdr->size = size;
+    xhdr->buffer = av_malloc(size + 1);
+    xhdr->buffer[size] = '\0';
+
+    do {
+        size_t len = size;
+
+        if (len > BLOCKSIZE) {
+            len = BLOCKSIZE;
+        }
+
+        memcpy(&xhdr->buffer[j], data_block.buffer, len);
+
+        j += len;
+        size -= len;
+
+        if (size > 0) {
+            int res = get_next_block(vf, &data_block);
+            if (res < 0) {
+                return res;
+            }
+        }
+    } while (size > 0);
+
+    return 0;
+}
+
+static void record_handler(struct xheader_data *xdata,
+                           char const *keyword,
+                           char const *value,
+                           size_t value_size)
+{
+    if (strcmp(keyword, "path") == 0) {
+        char *path = convert_from_utf8(value);
+
+        if (path) {
+            if (xdata->path) {
+                av_free(xdata->path);
+            }
+            xdata->path = path;
+        }
+    } else if (strcmp(keyword, "size") == 0) {
+        uintmax_t v = strtoumax(value, NULL, 10);
+
+        if (v != UINTMAX_MAX) {
+            xdata->size_set = 1;
+            xdata->size = v;
+        }
+    } else if (strcmp(keyword, "linkpath") == 0) {
+        char *path = convert_from_utf8(value);
+
+        if (path) {
+            if (xdata->linkname) {
+                av_free(xdata->linkname);
+            }
+            xdata->linkname = path;
+        }
+    } else {
+        //av_log(AVLOG_WARNING, "Unhandled tar extended header field %s", keyword);
+    }
+}
+
+static int decode_record(struct xheader *xhdr,
+                         char **ptr,
+                         struct xheader_data *xdata)
+{
+    char *record_start = *ptr;
+    char *cur = record_start;
+    avoff_t len;
+    char *endptr;
+    const char *keyword;
+    char *next_record;
+    const avoff_t remaining_length = xhdr->buffer + xhdr->size - record_start;
+
+    /* record is text based, first length, separated by whitespace
+       from keyword string, equal sign, value string, must end with
+       newline */
+
+    for (; isblank(*cur); cur++) {}
+
+    if (!isdigit(*cur)) {
+        // check for regular end
+        if (*cur != '\0') {
+            av_log(AVLOG_WARNING, "Malformed extended header: missing length");
+        }
+        return -EINVAL;
+    }
+
+    len = strtoumax(cur, &endptr, 10);
+
+    if (len < 3 || len > remaining_length) {
+        av_log(AVLOG_WARNING, "Extended header length is out of range");
+        return -EINVAL;
+    }
+
+    next_record = record_start + len;
+
+    cur = endptr;
+    for (; isblank(*cur); cur++) {}
+
+    if (cur == endptr) {
+        av_log(AVLOG_WARNING, "Malformed extended header: missing blank after length");
+        return -EINVAL;
+    }
+
+    keyword = cur;
+    cur = memchr(cur, '=', next_record - cur);
+    if (!cur) {
+        av_log(AVLOG_WARNING, "Malformed extended header: missing equal sign");
+        return -EINVAL;
+    }
+
+    if (next_record[-1] != '\n') {
+        av_log(AVLOG_WARNING, "Malformed extended header: missing newline");
+        return -EINVAL;
+    }
+
+    *cur = '\0';
+    next_record[-1] = '\0';
+
+    record_handler(xdata, keyword, cur + 1, next_record - cur - 2);
+
+    *cur = '=';
+    next_record[-1] = '\n';
+
+    *ptr = next_record;
+    return 0;
+}
+
+static void xheader_decode(struct xheader *xhdr,
+                           struct xheader_data *xdata)
+{
+    char *data = xhdr->buffer + BLOCKSIZE;
+
+    while (decode_record(xhdr, &data, xdata) == 0) {
+        continue;
+    }
+}
+
 /* return values: < 0: fatal, 0 eof, 1 bad header, 2 OK */
 static int read_entry(vfile *vf, struct tar_entinfo *tinf)
 {
@@ -294,6 +518,10 @@ static int read_entry(vfile *vf, struct tar_entinfo *tinf)
     char *next_long_name = NULL, *next_long_link = NULL;
     union block *header = &tinf->header;
 
+    // clear xhdr field as such a header may or may not appear so we
+    // can detect occurance of additional info
+    memset(&tinf->xhdr, 0, sizeof(tinf->xhdr));
+    
     while (1)
     {
         res = find_next_block(vf, header);
@@ -375,8 +603,17 @@ static int read_entry(vfile *vf, struct tar_entinfo *tinf)
                     }
                 if(res < 0) break;
             } else if (header->header.typeflag == XHDTYPE) {
-                /* just ignore/skip for the moment
-                 * look for details in GNU tar/list.c/read_header */
+                /* basic parsing for long names.
+                 * look for details in GNU tar/src/xheader.c */
+                struct xheader xhdr;
+                if (xheader_read(vf, &xhdr, header,
+                                 tinf->size) < 0) {
+                    av_free(xhdr.buffer);
+                    break;
+                }
+                xheader_decode(&xhdr,
+                               &tinf->xhdr);
+                av_free(xhdr.buffer);
             } else if (header->header.typeflag == XGLTYPE) {
                 /* just ignore/skip for the moment */
             }
@@ -426,13 +663,19 @@ static int read_entry(vfile *vf, struct tar_entinfo *tinf)
             }
 
             /* NOTE: header->header.name is not necessarily null-terminated */
-            if ( next_long_name ) {
+            if (tinf->xhdr.path) {
+                tinf->name = tinf->xhdr.path;
+                tinf->xhdr.path = NULL;
+            } else if ( next_long_name ) {
                 tinf->name = av_strdup (next_long_name);
             } else {
                 tinf->name = av_strndup( header->header.name, NAME_FIELD_SIZE );
             }
 
-            if ( next_long_link ) {
+            if (tinf->xhdr.linkname) {
+                tinf->linkname = tinf->xhdr.linkname;
+                tinf->xhdr.linkname = NULL;
+            } else if ( next_long_link ) {
                 tinf->linkname = av_strdup (next_long_link);
             } else {
                 tinf->linkname = av_strndup( header->header.linkname, NAME_FIELD_SIZE );
@@ -729,9 +972,16 @@ static int read_tarfile(vfile *vf, struct archive *arch,
         av_default_stat(&tarstat);
         decode_header(&tinf.header, &tarstat, &format, cache);
 
+        // overwrite info from xhdr
+        if (tinf.xhdr.size_set) {
+            tarstat.size = tinf.xhdr.size;
+        }
+
         insert_tarentry(arch, &tinf, &tarstat);
         av_free(tinf.name);
         av_free(tinf.linkname);
+        av_free(tinf.xhdr.path);
+        av_free(tinf.xhdr.linkname);
     }
 
     return 0;
@@ -1354,6 +1604,11 @@ int av_init_module_utar(struct vmodule *module)
     struct ext_info tarexts[2];
     struct archparams *ap;
     
+    pthread_mutex_init(&utf8_convert.iconv_lock, NULL);
+#if defined(HAVE_NL_LANGINFO) && defined(HAVE_ICONV)
+    utf8_convert.iconv_handle = iconv_open(nl_langinfo(CODESET), "UTF-8");
+#endif
+
     tarexts[0].from = ".tar",   tarexts[0].to = NULL;
     tarexts[1].from = NULL;
 

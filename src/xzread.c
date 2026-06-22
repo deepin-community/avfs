@@ -33,6 +33,8 @@ struct xzstreamcache {
 static struct xzstreamcache xzscache;
 static int xzread_nextid;
 static AV_LOCK_DECL(xzread_lock);
+static uint64_t xz_memlimit = INITIAL_MEMLIMIT;
+static uint64_t xz_memlimit_hit = 0;
 
 struct xzcache {
     int id;
@@ -83,7 +85,7 @@ static int xz_new_stream(lzma_stream **resp)
     *s = tmp;
 
     /* TODO: choose good memory limit */
-    res = lzma_auto_decoder(s, INITIAL_MEMLIMIT, 0);
+    res = lzma_auto_decoder(s, xz_memlimit, 0);
     if(res != LZMA_OK) {
         *resp = NULL;
         av_log(AVLOG_ERROR, "XZ: decompress init error: %i", res);
@@ -178,7 +180,12 @@ static int xzfile_decompress(struct xzfile *fil, struct xzcache *zc)
         AV_UNLOCK(xzread_lock);
         return 0;
     }
-    /*TODO handle LZMA_MEMLIMIT_ERROR */
+    if (res == LZMA_MEMLIMIT_ERROR) {
+        av_log(AVLOG_ERROR, "XZ: memlimit error: %lu\n", lzma_memusage(fil->s));
+        __atomic_fetch_add(&xz_memlimit_hit, 1, __ATOMIC_RELAXED);
+        return -ENOMEM;
+    }
+
     if(res != LZMA_OK) {
         av_log(AVLOG_ERROR, "XZ: decompress error: %i", res);
         return -EIO;
@@ -357,4 +364,21 @@ struct xzcache *av_xzcache_new()
     AV_UNLOCK(xzread_lock);
     
     return zc;
+}
+
+int av_xzfile_set_memlimit(uint64_t new_limit)
+{
+    xz_memlimit = new_limit;
+
+    return 0;
+}
+
+uint64_t av_xzfile_get_memlimit()
+{
+    return xz_memlimit;
+}
+
+uint64_t av_xzfile_get_memlimit_hit()
+{
+    return xz_memlimit_hit;
 }

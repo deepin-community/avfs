@@ -1,8 +1,32 @@
-avfs (1.1.4-2deepin1) unstable; urgency=medium
+avfs (1.2.0-2) unstable; urgency=medium
 
-  * fix: fix read stuck when reenter mountpoint
+  * Switch recommendation to 7zip (Closes: #1063547)
+  * Move from fuse to fuse3 (Closes: #1084460)
 
- -- wangrong <wangrong@uniontech.com>  Tue, 04 Nov 2025 15:11:30 +0800
+ -- Michael Meskes <meskes@debian.org>  Tue, 04 Mar 2025 09:36:49 +0100
+
+avfs (1.2.0-1) unstable; urgency=medium
+
+  * New upstream version 1.2.0 (Closes: #1061322)
+    - Refresh patches
+    - Update lintian overrides
+  * Replace Build-Depends on pkg-config with pkgconf
+  * Add myself as uploader
+  * Update Standards-Version to 4.7.1, no changes needed
+  * Remove obsolete README.source
+  * Update d/copyright
+  * Update project homepage
+
+ -- Dr. Tobias Quathamer <toddy@debian.org>  Fri, 21 Feb 2025 12:06:42 +0100
+
+avfs (1.1.5-1) unstable; urgency=medium
+
+  * New upstream version 1.1.5 (Closes: #1042511)
+  * Moved to 3.0 source format (Closes: #1007351)
+  * Adjust patch to new upstream version.
+  * Bumped Standards-Version to 4.6.2
+
+ -- Michael Meskes <meskes@debian.org>  Fri, 04 Aug 2023 14:20:36 +0200
 
 avfs (1.1.4-2) unstable; urgency=medium
 

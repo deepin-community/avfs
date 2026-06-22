@@ -20,7 +20,7 @@ Where Is The Latest Version
 
 Check out the page
 
-  http://www.inf.bme.hu/~mszeredi/avfs/
+  https://avf.sourceforge.net/
 
 or
 
@@ -195,6 +195,16 @@ on these, see the files in /usr/lib/avfs/extfs.
   #ucpio             cpio archives
   #ulha              lha archives
   #uzoo              zoo archives
+
+
+Special #avfsstat files
+-----------------------
+
+symlink_rewrite: write '1' to it to let it change absolute
+  symlinks to relative ones
+xz_memlimit: the amount of bytes used for xz decoder
+xz_memlimit_hit: the number of occurrences the xz decoder hit
+  its memory limit
 
 
 Writing new modules
