@@ -1,3 +1,9 @@
+avfs (1.2.0-2deepin1) unstable; urgency=medium
+
+  * Port fix-read-stuck-when-reenter-mountpoint.patch from master branch
+
+ -- lichenggang <lichenggang@uniontech.com>  Tue, 23 Jun 2026 21:14:34 +0800
+
 avfs (1.2.0-2) unstable; urgency=medium
 
   * Switch recommendation to 7zip (Closes: #1063547)
