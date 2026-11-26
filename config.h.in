@@ -102,6 +102,9 @@
 /* Define to 1 if you have the 'vsnprintf' function. */
 #undef HAVE_VSNPRINTF
 
+/* Define to 2 or 3 according to libfuse major version */
+#undef LIBFUSE_VERSION
+
 /* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 

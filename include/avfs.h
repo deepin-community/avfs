@@ -170,7 +170,7 @@ typedef struct {
 #define AV_NEW_OBJ(ptr, destr) \
    ptr = av_new_obj(sizeof(*(ptr)), (void (*)(void *)) destr)
 
-#define AV_LOCK_DECL(mutex) avmutex mutex
+#define AV_LOCK_DECL(mutex) avmutex mutex = PTHREAD_MUTEX_INITIALIZER
 #define AV_INITLOCK(mutex) pthread_mutex_init(&(mutex), NULL)
 #define AV_INIT_RECURSIVELOCK(mutex) { pthread_mutexattr_t attr;   \
         pthread_mutexattr_init(&attr);                                  \

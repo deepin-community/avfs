@@ -13,6 +13,7 @@
 
 #include <stdlib.h>
 #include <fcntl.h>
+#include <stdbool.h>
 
 #define INDEXDISTANCE 1048576
 
@@ -42,10 +43,18 @@ static int zread_nextid;
 static AV_LOCK_DECL(zread_lock);
 
 struct zindex {
+#ifdef USE_SYSTEM_ZLIB
+    avoff_t out;               // offset in uncompressed data
+    avoff_t in;                // offset in compressed file of first full byte
+    int bits;                  // 0, or number of bits (1-7) from byte at in-1
+    unsigned char dict[32768]; // dictionary
+    unsigned int dict_len;     // actual dict len
+#else
     avoff_t offset;          /* The number of output bytes */
     avoff_t indexoffset;     /* Offset in the indexfile */
     avsize_t indexsize;      /* Size of state record */
     struct zindex *next;
+#endif
 };
 
 struct zcache {
@@ -54,7 +63,9 @@ struct zcache {
     avoff_t nextindex;
     avoff_t size;
     int id;
+#ifndef USE_SYSTEM_ZLIB
     struct zindex *indexes;
+#endif
     avmutex lock;
     int crc_ok;
 };
@@ -182,6 +193,7 @@ static void zfile_scache_cleanup(void)
     inflateEnd(&scache.s);
 }
 
+// prerequisite: zread_lock held
 static void zfile_scache_save(int id, z_stream *s, int calccrc, int iseof)
 {
     int res;
@@ -206,17 +218,26 @@ static void zfile_scache_save(int id, z_stream *s, int calccrc, int iseof)
         atexit(zfile_scache_cleanup);
 
     scache.id = id;
+#ifdef USE_SYSTEM_ZLIB
+    inflateCopy(&scache.s, s);
+    inflateEnd(s);
+#else
     scache.s = *s;
+#endif
     scache.calccrc = calccrc;
     scache.iseof = iseof;
 }
 
+// no lock
 static int zfile_reset(struct zfile *fil)
 {
     int res;
 
     /* FIXME: Is it a good idea to save the previous state or not? */
+    AV_LOCK(zread_lock);
     zfile_scache_save(fil->id, &fil->s, fil->calccrc, fil->iseof);
+    AV_UNLOCK(zread_lock);
+    
     memset(&fil->s, 0, sizeof(z_stream));
     res = inflateInit2(&fil->s, -MAX_WBITS);
     if(res != Z_OK) {
@@ -241,6 +262,7 @@ static int zfile_reset(struct zfile *fil)
 }
 
 #ifndef USE_SYSTEM_ZLIB
+// prerequisite: zc->lock held
 static int zfile_save_state(struct zcache *zc, char *state, int statesize,
                             avoff_t offset)
 {
@@ -283,6 +305,7 @@ static int zfile_save_state(struct zcache *zc, char *state, int statesize,
 }
 
 
+// prerequisite: zc->lock held
 static int zfile_save_index(struct zfile *fil, struct zcache *zc)
 {
     int res;
@@ -306,6 +329,7 @@ static int zfile_save_index(struct zfile *fil, struct zcache *zc)
     return res;
 }
 
+// prerequisite: zc->lock held
 static int zfile_seek_index(struct zfile *fil, struct zcache *zc, 
                             struct zindex *zi)
 {
@@ -315,7 +339,10 @@ static int zfile_seek_index(struct zfile *fil, struct zcache *zc,
     char *state;
 
     /* FIXME: Is it a good idea to save the previous state or not? */
+    AV_LOCK(zread_lock);
     zfile_scache_save(fil->id, &fil->s, fil->calccrc, fil->iseof);
+    AV_UNLOCK(zread_lock);
+
     memset(&fil->s, 0, sizeof(z_stream));
 
     fd = open(zc->indexfile, O_RDONLY, 0);
@@ -353,6 +380,7 @@ static int zfile_seek_index(struct zfile *fil, struct zcache *zc,
     return 0;
 }
 
+// prerequisite: zc->lock held
 static struct zindex *zcache_find_index(struct zcache *zc, avoff_t offset)
 {
     struct zindex *prevzi;
@@ -366,6 +394,170 @@ static struct zindex *zcache_find_index(struct zcache *zc, avoff_t offset)
     }
 
     return prevzi;
+}
+#else
+// prerequisite: zc->lock held
+static int zfile_save_state(struct zcache *zc,
+                            const struct zindex *entry)
+{
+    int fd;
+    int res;
+
+    fd = open(zc->indexfile, O_WRONLY | O_CREAT, 0600);
+    if(fd == -1) {
+        av_log(AVLOG_ERROR, "ZFILE: Error opening indexfile %s: %s",
+               zc->indexfile, strerror(errno));
+        return -EIO;
+    }
+    
+    lseek(fd, zc->filesize, SEEK_SET);
+    
+    res = write(fd, entry, sizeof(*entry));
+    if(res != sizeof(*entry)) {
+        close(fd);
+        av_log(AVLOG_ERROR, "ZFILE: Error writing indexfile %s: %s",
+               zc->indexfile, strerror(errno));
+        return -EIO;
+    }
+    res = close(fd);
+    if(res == -1) {
+        av_log(AVLOG_ERROR, "ZFILE: Error writing indexfile %s: %s",
+               zc->indexfile, strerror(errno));
+        return -EIO;
+    }
+
+    zc->nextindex += INDEXDISTANCE;
+    zc->filesize += sizeof(*entry);
+
+    return 0;
+}
+
+// prerequisite: zc->lock held
+static int zfile_save_index(struct zfile *fil, struct zcache *zc)
+{
+    int res;
+
+    if ((fil->s.data_type & 0xc0) != 0x80) {
+        return 0;
+    }
+
+    struct zindex entry;
+
+    memset(&entry, 0, sizeof(entry));
+
+    entry.out = fil->s.total_out;
+    entry.in = fil->s.total_in;
+    entry.bits = fil->s.data_type & 7;
+    entry.dict_len = sizeof(entry.dict);
+    inflateGetDictionary(&fil->s, entry.dict, &entry.dict_len);
+
+    res = zfile_save_state(zc, &entry);
+
+    return res;
+}
+
+// prerequisite: no lock held
+static int zfile_seek_index(struct zfile *fil, struct zcache *zc, 
+                            struct zindex *zi)
+{
+    int res;
+    char buf[1] = {0};
+
+    AV_LOCK(zread_lock);
+    zfile_scache_save(fil->id, &fil->s, fil->calccrc, fil->iseof);
+    AV_UNLOCK(zread_lock);
+    memset(&fil->s, 0, sizeof(z_stream));
+
+    if (zi->bits) {
+        avssize_t read_res = av_pread(fil->infile, buf, 1,
+                                      zi->in + fil->dataoff - (zi->bits ? 1 : 0));
+        if (read_res != 1) {
+            av_log(AVLOG_ERROR, "ZFILE: failed to read single byte from offset %llu", zi->in - (zi->bits ? 1 : 0));
+            return -EIO;
+        }
+    }
+
+    res = inflateInit2(&fil->s, -MAX_WBITS);
+    if (res != Z_OK) {
+        av_log(AVLOG_ERROR, "ZFILE: failed to init zstream");
+        return -EIO;
+    }
+    if (zi->bits) {
+        if (inflatePrime(&fil->s, zi->bits, buf[0] >> (8 - zi->bits)) != Z_OK) {
+            av_log(AVLOG_ERROR, "ZFILE: failed to prime zstream");
+            return -EIO;
+        }
+    }
+
+    if (inflateSetDictionary(&fil->s, zi->dict, zi->dict_len) != Z_OK) {
+        av_log(AVLOG_ERROR, "ZFILE: failed to restore dictionary");
+        return -EIO;
+    }
+
+    fil->iseof = 0;
+    fil->calccrc = 0;
+    fil->s.total_in = zi->in;
+    fil->s.total_out = zi->out;
+
+    return 0;
+}
+
+// prerequisite: zc->lock held
+static int zcache_find_index(struct zcache *zc, avoff_t offset, struct zindex *entry)
+{
+    struct zindex tmp;
+    int res;
+
+    const avoff_t entries = zc->filesize / sizeof(tmp);
+
+    if (entries == 0) {
+        return -ENOENT;
+    }
+
+    int fd = open(zc->indexfile, O_RDONLY, 0);
+    if(fd == -1) {
+        av_log(AVLOG_ERROR, "ZFILE: Error opening indexfile %s: %s",
+               zc->indexfile, strerror(errno));
+        return -EIO;
+    }
+
+    size_t left_inc = 0, right_exc = entries;
+    bool candidate_found = false;
+
+    while (left_inc < right_exc) {
+        size_t mid = (left_inc + right_exc) / 2;
+        ssize_t seek_pos = lseek(fd, mid * sizeof(tmp), SEEK_SET);
+        if (seek_pos != mid * sizeof(tmp)) {
+            close(fd);
+            av_log(AVLOG_ERROR, "ZFILE: Error opening indexfile %s: %s",
+                   zc->indexfile, strerror(errno));
+            return -EIO;
+        }
+
+        res = read(fd, &tmp, sizeof(tmp));
+        if (res != sizeof(tmp)) {
+            close(fd);
+            av_log(AVLOG_ERROR, "ZFILE: Error opening indexfile %s: %s",
+                   zc->indexfile, strerror(errno));
+            return -EIO;
+        }
+
+        if(tmp.out > offset) {
+            right_exc = mid;
+        } else {
+            *entry = tmp;
+            candidate_found = true;
+            left_inc = mid + 1;
+        }
+
+        if (mid == left_inc) break;
+    }
+
+    close(fd);
+
+    if (candidate_found) return 0;
+
+    return -ENOENT;
 }
 #endif
 
@@ -541,12 +733,16 @@ static int zfile_inflate(struct zfile *fil, struct zcache *zc)
     }
 
     start = fil->s.next_out;
+#ifdef USE_SYSTEM_ZLIB
+    res = inflate(&fil->s, Z_BLOCK);
+#else
     res = inflate(&fil->s, Z_NO_FLUSH);
+#endif
     if(fil->calccrc) {
-        AV_LOCK(zread_lock);
+        AV_LOCK(zc->lock);
         if(zc->crc_ok)
             fil->calccrc = 0;
-        AV_UNLOCK(zread_lock);
+        AV_UNLOCK(zc->lock);
 
         if(fil->calccrc)
             fil->s.adler = crc32(fil->s.adler, start, fil->s.next_out - start);
@@ -591,11 +787,11 @@ static int zfile_inflate(struct zfile *fil, struct zcache *zc)
             }
         }
 
-        AV_LOCK(zread_lock);
+        AV_LOCK(zc->lock);
         if(fil->calccrc)
             zc->crc_ok = crc_ok;
         zc->size = fil->s.total_out;
-        AV_UNLOCK(zread_lock);
+        AV_UNLOCK(zc->lock);
 
         if (!cont) {
             return 0;
@@ -607,16 +803,14 @@ static int zfile_inflate(struct zfile *fil, struct zcache *zc)
         return -EIO;
     }
     
+    AV_LOCK(zc->lock);
     AV_LOCK(zread_lock);
-#ifdef USE_SYSTEM_ZLIB
-    res = 0;
-#else
     if(fil->s.total_out >= zc->nextindex)
         res = zfile_save_index(fil, zc);
     else
         res = 0;
-#endif
     AV_UNLOCK(zread_lock);
+    AV_UNLOCK(zc->lock);
     if(res < 0)
         return res;
 
@@ -658,10 +852,47 @@ static int zfile_skip_to(struct zfile *fil, struct zcache *zc, avoff_t offset)
     return 0;
 }
 
-#ifndef USE_SYSTEM_ZLIB
+#ifdef USE_SYSTEM_ZLIB
+static int zfile_swap_zstream(z_stream *s1,
+                              z_stream *s2)
+{
+    z_stream tmp;
+    memset(&tmp, 0, sizeof(tmp));
+
+    if (inflateCopy(&tmp, s1) != Z_OK) {
+        return -EIO;
+    }
+
+    if (inflateEnd(s1) != Z_OK) {
+        inflateEnd(&tmp);
+        return -EIO;
+    }
+
+    if (inflateCopy(s1, s2) != Z_OK) {
+        inflateEnd(&tmp);
+        return -EIO;
+    }
+
+    if (inflateEnd(s2) != Z_OK) {
+        inflateEnd(s1);
+        inflateEnd(&tmp);
+        return -EIO;
+    }
+    
+    if (inflateCopy(s2, &tmp) != Z_OK) {
+        inflateEnd(s1);
+        inflateEnd(&tmp);
+        return -EIO;
+    }
+
+    inflateEnd(&tmp);
+
+    return 0;
+}
+#endif
+
 static int zfile_seek(struct zfile *fil, struct zcache *zc, avoff_t offset)
 {
-    struct zindex *zi;
     avoff_t curroff = fil->s.total_out;
     avoff_t zcdist;
     avoff_t scdist;
@@ -672,15 +903,30 @@ static int zfile_seek(struct zfile *fil, struct zcache *zc, avoff_t offset)
     else
         dist = -1;
 
+    AV_LOCK(zc->lock);
+    AV_LOCK(zread_lock);
+
+#ifdef USE_SYSTEM_ZLIB
+    struct zindex zi;
+    int res = zcache_find_index(zc, offset, &zi);
+    if(res == 0) {
+        zcdist = offset - zi.out + ZCACHE_EXTRA_DIST;
+    } else {
+        zcdist = offset;
+    }
+#else
+    struct zindex *zi;
     zi = zcache_find_index(zc, offset);
     if(zi != NULL)
         zcdist = offset - zi->offset + ZCACHE_EXTRA_DIST;
     else
         zcdist = offset;
+#endif
 
     if(scache.id == zc->id && offset >= scache.s.total_out) {
         scdist = offset - scache.s.total_out;
         if((dist == -1 || scdist < dist) && scdist < zcdist) {
+#ifndef USE_SYSTEM_ZLIB
             z_stream tmp = fil->s;
             int tmpcc = fil->calccrc;
             int tmpiseof = fil->iseof;
@@ -691,38 +937,65 @@ static int zfile_seek(struct zfile *fil, struct zcache *zc, avoff_t offset)
             scache.s = tmp;
             scache.calccrc = tmpcc;
             scache.iseof = tmpiseof;
+            AV_UNLOCK(zread_lock);
+            AV_UNLOCK(zc->lock);
             return 0;
+#else
+            if (zfile_swap_zstream(&scache.s, &fil->s) == 0){ 
+                int tmpcc = fil->calccrc;
+                int tmpiseof = fil->iseof;
+                fil->s.avail_in = 0;
+                fil->calccrc = scache.calccrc;
+                fil->iseof = scache.iseof;
+                scache.calccrc = tmpcc;
+                scache.iseof = tmpiseof;
+                AV_UNLOCK(zread_lock);
+                AV_UNLOCK(zc->lock);
+                return 0;
+            }
+#endif
         }
     }
+    AV_UNLOCK(zread_lock);
+
+    // we need to keep the zc lock when using the internal zlib to
+    // keep zi valid
+#ifdef USE_SYSTEM_ZLIB
+    AV_UNLOCK(zc->lock);
+#endif
 
     if(dist == -1 || zcdist < dist) {
-        if(zi == NULL)
+#ifdef USE_SYSTEM_ZLIB
+        if(res != 0)
             return zfile_reset(fil);
         else
-            return zfile_seek_index(fil, zc, zi);
+            return zfile_seek_index(fil, zc, &zi);
+#else
+        if(zi == NULL) {
+            AV_UNLOCK(zc->lock);
+            return zfile_reset(fil);
+        } else {
+            int res = zfile_seek_index(fil, zc, zi);
+            AV_UNLOCK(zc->lock);
+            return res;
+        }
+#endif
     }
     
+#ifndef USE_SYSTEM_ZLIB
+    AV_UNLOCK(zc->lock);
+#endif
+
     return 0;
 }
-#endif
 
 static int zfile_goto(struct zfile *fil, struct zcache *zc, avoff_t offset)
 {
     int res;
 
-    AV_LOCK(zc->lock);
-    AV_LOCK(zread_lock);
-#ifdef USE_SYSTEM_ZLIB
-    if ( offset < fil->s.total_out ) {
-        res = zfile_reset(fil);
-    } else res = 0;
-#else
     res = zfile_seek(fil, zc, offset);
-#endif
-    AV_UNLOCK(zread_lock);
     if(res == 0)
         res = zfile_skip_to(fil, zc, offset);
-    AV_UNLOCK(zc->lock);
 
     return res;
 }
@@ -765,9 +1038,9 @@ int av_zfile_size(struct zfile *fil, struct zcache *zc, avoff_t *sizep)
     int res;
     avoff_t size;
 
-    AV_LOCK(zread_lock);
+    AV_LOCK(zc->lock);
     size = zc->size;
-    AV_UNLOCK(zread_lock);
+    AV_UNLOCK(zc->lock);
 
     if(size != -1 || fil == NULL) {
         *sizep = size;
@@ -780,9 +1053,9 @@ int av_zfile_size(struct zfile *fil, struct zcache *zc, avoff_t *sizep)
     if(res < 0)
         return res;
     
-    AV_LOCK(zread_lock);
+    AV_LOCK(zc->lock);
     size = zc->size;
-    AV_UNLOCK(zread_lock);
+    AV_UNLOCK(zc->lock);
     
     if(size == -1) {
         av_log(AVLOG_ERROR, "ZFILE: Internal error: could not find size");
@@ -839,16 +1112,20 @@ struct zfile *av_zfile_new(vfile *vf, avoff_t dataoff, avuint crc, enum av_zfile
 
 static void zcache_destroy(struct zcache *zc)
 {
+#ifndef USE_SYSTEM_ZLIB
     struct zindex *zi;
     struct zindex *nextzi;
+#endif
 
     AV_FREELOCK(zc->lock);
     av_del_tmpfile(zc->indexfile);
     
+#ifndef USE_SYSTEM_ZLIB
     for(zi = zc->indexes; zi != NULL; zi = nextzi) {
         nextzi = zi->next;
         av_free(zi);
     }
+#endif
 }
 
 struct zcache *av_zcache_new()
@@ -858,7 +1135,9 @@ struct zcache *av_zcache_new()
     AV_NEW_OBJ(zc, zcache_destroy);
     zc->indexfile = NULL;
     zc->nextindex = INDEXDISTANCE;
+#ifndef USE_SYSTEM_ZLIB
     zc->indexes = NULL;
+#endif
     zc->filesize = 0;
     zc->size = -1;
     zc->crc_ok = 0;

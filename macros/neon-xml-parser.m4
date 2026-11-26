@@ -91,7 +91,7 @@ if test "$neon_found_parser" = "no"; then
 			,
 			CFLAGS="$oCFLAGS"
 			LIBS="$oLIBS"
-			AC_WARN([cannot use old libxml (1.8.3 or newer required)])
+			AC_MSG_WARN(cannot use old libxml (1.8.3 or newer required))
 		)
 	fi
 fi

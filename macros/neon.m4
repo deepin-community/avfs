@@ -158,23 +158,23 @@ else
     LIBS="$LIBS `$config --libs`"
     ver=`$config --version`
     AC_MSG_CHECKING(for neon library version)
-    AC_TRY_RUN([
+    AC_RUN_IFELSE([AC_LANG_SOURCE([[
 #include <http_utils.h>
     
 int main(void) {
 return neon_version_minimum($neon_require_major, $neon_require_minor);
 }
-], [
+]])],[
     AC_MSG_RESULT([okay (found $ver)])
     LIBS="$oLIBS"
     CFLAGS="$oCFLAGS"
     $2
-], [
+],[
     AC_MSG_RESULT([failed, found $ver wanted >=$neon_require_major.$neon_require_minor])
     LIBS="$oLIBS"
     CFLAGS="$oCFLAGS"
     $3
-])
+],[])
 
 fi
 

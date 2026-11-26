@@ -7,7 +7,12 @@
     See the file COPYING.
 */
 
-#define FUSE_USE_VERSION 26
+#include "config.h"
+#if LIBFUSE_VERSION == 3
+#  define FUSE_USE_VERSION 31
+#else
+#  define FUSE_USE_VERSION 26
+#endif
 
 #include <fuse.h>
 #include <virtual.h>
@@ -24,7 +29,11 @@ struct fuse *fuse;
 
 static pthread_mutex_t avfsd_mutexlock = PTHREAD_MUTEX_INITIALIZER;
 
+#if LIBFUSE_VERSION == 3
+static int avfsd_getattr(const char *path, struct stat *stbuf, struct fuse_file_info *fi)
+#else
 static int avfsd_getattr(const char *path, struct stat *stbuf)
+#endif
 {
     int res;
 
@@ -48,8 +57,13 @@ static int avfsd_readlink(const char *path, char *buf, size_t size)
 }
 
 
+#if LIBFUSE_VERSION == 3
+static int avfsd_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
+                         off_t offset, struct fuse_file_info *fi, enum fuse_readdir_flags flags)
+#else
 static int avfsd_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                          off_t offset, struct fuse_file_info *fi)
+#endif
 {
     DIR *dp;
     struct dirent *de;
@@ -65,8 +79,13 @@ static int avfsd_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
         memset(&st, 0, sizeof(st));
         st.st_ino = de->d_ino;
         st.st_mode = de->d_type << 12;
+#if LIBFUSE_VERSION == 3
+        if (filler(buf, de->d_name, &st, 0, FUSE_FILL_DIR_DEFAULTS))
+            break;
+#else
         if (filler(buf, de->d_name, &st, 0))
             break;
+#endif
     }
 
     virt_closedir(dp);
@@ -128,7 +147,11 @@ static int avfsd_symlink(const char *from, const char *to)
     return 0;
 }
 
+#if LIBFUSE_VERSION == 3
+static int avfsd_rename(const char *from, const char *to, unsigned int flags)
+#else
 static int avfsd_rename(const char *from, const char *to)
+#endif
 {
     int res;
 
@@ -150,7 +173,11 @@ static int avfsd_link(const char *from, const char *to)
     return 0;
 }
 
+#if LIBFUSE_VERSION == 3
+static int avfsd_chmod(const char *path, mode_t mode, struct fuse_file_info *fi)
+#else
 static int avfsd_chmod(const char *path, mode_t mode)
+#endif
 {
     int res;
 
@@ -161,7 +188,11 @@ static int avfsd_chmod(const char *path, mode_t mode)
     return 0;
 }
 
+#if LIBFUSE_VERSION == 3
+static int avfsd_chown(const char *path, uid_t uid, gid_t gid, struct fuse_file_info *fi)
+#else
 static int avfsd_chown(const char *path, uid_t uid, gid_t gid)
+#endif
 {
     int res;
 
@@ -172,7 +203,11 @@ static int avfsd_chown(const char *path, uid_t uid, gid_t gid)
     return 0;
 }
 
+#if LIBFUSE_VERSION == 3
+static int avfsd_truncate(const char *path, off_t size, struct fuse_file_info *fi)
+#else
 static int avfsd_truncate(const char *path, off_t size)
+#endif
 {
     int res;
 
@@ -183,11 +218,20 @@ static int avfsd_truncate(const char *path, off_t size)
     return 0;
 }
 
-static int avfsd_utime(const char *path, struct utimbuf *buf)
+#if LIBFUSE_VERSION == 3
+static int avfsd_utime(const char *path, const struct timespec tv[2],
+                       struct fuse_file_info *fi)
+#else
+static int avfsd_utime(const char *path, const struct timespec tv[2])
+#endif
 {
     int res;
 
-    res = virt_utime(path, buf);
+    struct utimbuf buf;
+    buf.actime = tv[0].tv_sec;
+    buf.modtime = tv[1].tv_sec;
+
+    res = virt_utime(path, &buf);
     if (res == -1)
         return -errno;
 
@@ -300,7 +344,7 @@ static struct fuse_operations avfsd_oper = {
     chmod:	avfsd_chmod,
     chown:	avfsd_chown,
     truncate:	avfsd_truncate,
-    utime:	avfsd_utime,
+    utimens:	avfsd_utime,
     open:	avfsd_open,
     read:	avfsd_read,
     write:	avfsd_write,

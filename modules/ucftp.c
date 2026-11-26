@@ -1175,26 +1175,33 @@ static int ucftp_read_list(struct ucftpfs *fs, struct filebuf *fb, struct ucftpe
                         subent = ucftp_new_entry(filename);
                     }
                     if(subent->node == NULL) {
-                        ucftp_make_node(fs, subent, stbuf.mode);
-                        av_unref_obj(subent);
+                        if (ucftp_make_node(fs, subent, stbuf.mode) == 0) {
+                            // when it succeeds, it creates another
+                            // ref for link between subent and node so
+                            // we unref here to just keep one ref
+                            av_unref_obj(subent);
+                        }
                     }
-                    ucftp_add_subentry(ent, subent, entp);
-                    entp = &subent->next;
 
-                    /* re-use some old values */
-                    if(subent->node != NULL) {
+                    if (subent->node) {
+                        ucftp_add_subentry(ent, subent, entp);
+                        entp = &subent->next;
+
+                        /* re-use some old values */
                         stbuf.dev = subent->node->st.dev;
                         stbuf.ino = subent->node->st.ino;
-                    }
 
-                    subent->node->st = stbuf;
-                    if(subent->node->linkname != NULL) {
-                        av_free(subent->node->linkname);
-                    }
-                    if(linkname != NULL) {
-                        subent->node->linkname = av_strdup(linkname);
+                        subent->node->st = stbuf;
+                        if(subent->node->linkname != NULL) {
+                            av_free(subent->node->linkname);
+                        }
+                        if(linkname != NULL) {
+                            subent->node->linkname = av_strdup(linkname);
+                        } else {
+                            subent->node->linkname = NULL;
+                        }
                     } else {
-                        subent->node->linkname = NULL;
+                        av_unref_obj(subent);
                     }
                 }
                 

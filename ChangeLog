@@ -1,3 +1,22 @@
+2026-03-01  Ralf Hoffmann <ralf@boomerangsworld.de>
+
+	* bump version to 1.3.0
+
+2026-02-11  Ralf Hoffmann <ralf@boomerangsworld.de>
+
+	* fix deadlock in zread
+
+2026-01-06  Ralf Hoffmann <ralf@boomerangsworld.de>
+
+	* implement faster random access with system zlib
+	* the internal (old 1.1.4) version is still available but not
+	enabled by default any longer
+
+2025-12-19  Ralf Hoffmann <ralf@boomerangsworld.de>
+
+	* add support for fuse3
+	* update autotools files
+
 2025-02-20  Ralf Hoffmann <ralf@boomerangsworld.de>
 
 	* bump version to 1.2.0

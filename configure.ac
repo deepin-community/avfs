@@ -1,19 +1,19 @@
 dnl Process this file with autoconf to produce a configure script.
 
 define(AVFS_MAJOR,[1])
-define(AVFS_MINOR,[2])
+define(AVFS_MINOR,[3])
 define(AVFS_PATCH,[0])
 define(AVFS_COMMENT,[])
 
 define(AVFS_VERSION,AVFS_MAJOR[.]AVFS_MINOR[.]AVFS_PATCH[]AVFS_COMMENT)
 define(AVFS_NUMVERSION,m4_eval(AVFS_MAJOR*100+AVFS_MINOR*10+AVFS_PATCH))
 
-AC_PREREQ([2.50])
-AC_INIT([avfs], AVFS_VERSION)
+AC_PREREQ([2.72])
+AC_INIT([avfs],[AVFS_VERSION])
 AC_CONFIG_SRCDIR([include/avfs.h])
 AM_INIT_AUTOMAKE
 
-AC_CONFIG_HEADER(include/config.h:config.h.in)
+AC_CONFIG_HEADERS([include/config.h:config.h.in])
 AC_PREFIX_DEFAULT(/usr)
 AC_CONFIG_MACRO_DIR([macros])
 
@@ -54,11 +54,11 @@ if test "$os" = "Linux"; then
 fi
 
 AC_ARG_ENABLE([library],
-              AC_HELP_STRING([--enable-library],[Compile avfs as a shared or static library]),
+              AS_HELP_STRING([--enable-library],[Compile avfs as a shared or static library]),
               [if test "$enableval" = yes; then shared=yes; else shared=no; fi])
 
 AC_ARG_ENABLE([fuse],
-              AC_HELP_STRING([--enable-fuse],[Compile avfsd for fuse]),
+              AS_HELP_STRING([--enable-fuse],[Compile avfsd for fuse]),
               [if test "$enableval" = yes; then fuse=yes; else fuse=no; fi])
 
 shared_build=no
@@ -100,9 +100,17 @@ dav=yes)
 AC_MSG_RESULT([$dav])
 
 AC_ARG_WITH(system-zlib,
-            AC_HELP_STRING([--with-system-zlib],[Use system zlib instead of builtin]),
+            AS_HELP_STRING([--with-system-zlib],[Use system zlib instead of builtin]),
             [if test "$withval" = yes; then use_system_zlib=yes; else use_system_zlib=no; fi],
-            [use_system_zlib=no])
+            [use_system_zlib=yes])
+
+if test "$use_system_zlib" = yes; then
+  PKG_CHECK_EXISTS([zlib],[
+                   PKG_CHECK_MODULES([LIBZLIB],[zlib >= 1.2.3],
+                                     [],[use_system_zlib=no])
+                   ])
+fi
+
 AM_CONDITIONAL(USE_SYSTEM_ZLIB,[test x$use_system_zlib = xyes])
 if test x$use_system_zlib = xyes; then
     AC_DEFINE(USE_SYSTEM_ZLIB, 1, [Define if you want to use system zlib library])
@@ -116,7 +124,7 @@ AC_SUBST(LIBZ)
 AC_SUBST(ZLIB_INCLUDE)
 
 AC_ARG_WITH(system-bzlib,
-            AC_HELP_STRING([--with-system-bzlib],[Use system bzlib instead of builtin]),
+            AS_HELP_STRING([--with-system-bzlib],[Use system bzlib instead of builtin]),
             [if test "$withval" = yes; then use_system_bzlib=yes; else use_system_bzlib=no; fi],
             [use_system_bzlib=no])
 AM_CONDITIONAL(USE_SYSTEM_BZLIB,[test x$use_system_bzlib = xyes])
@@ -132,7 +140,7 @@ AC_SUBST(LIBBZ2)
 AC_SUBST(BZLIB_INCLUDE)
 
 AC_ARG_WITH(pkgconfigdir,
-            AC_HELP_STRING([--with-pkgconfigdir=DIR],[pkgconfig file in DIR @<:@LIBDIR/pkgconfig@:>@]),
+            AS_HELP_STRING([--with-pkgconfigdir=DIR],[pkgconfig file in DIR @<:@LIBDIR/pkgconfig@:>@]),
             [pkgconfigdir=$withval],
             [pkgconfigdir='${libdir}/pkgconfig'])
 AC_SUBST(pkgconfigdir)
@@ -142,7 +150,7 @@ cflags="$CFLAGS"
 AC_PROG_CC
 AC_PROG_CPP
 AC_PROG_INSTALL
-AC_PROG_LIBTOOL
+LT_INIT
 
 PKG_PROG_PKG_CONFIG
 
@@ -175,6 +183,16 @@ if test -z "$cflags"; then
          CFLAGS="-Wall -O3"
       fi
       ZLIB_CFLAGS="-Wall -O3"
+
+      old_CFLAGS="$CFLAGS"
+      CFLAGS="$CFLAGS -Wno-old-style-definition"
+      AC_MSG_CHECKING([whether the GCC works with "-Wno-old-style-definition"])
+      AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[ int test=0; test=5; ]])],
+                        [ AC_MSG_RESULT(yes)
+                          ZLIB_CFLAGS="$ZLIB_CFLAGS -Wno-old-style-definition"
+                        ],
+                        [ AC_MSG_RESULT(no) ])
+      CFLAGS="$old_CFLAGS"
    else
       if test "$debugmode" = yes; then
          CFLAGS="-g"
@@ -206,17 +224,15 @@ AC_CHECK_HEADERS(unistd.h)
 AC_CHECK_HEADERS(sys/statvfs.h)
 
 AC_CACHE_CHECK([for d_type in struct dirent], my_cv_struct_d_type,
-[AC_TRY_COMPILE([#include <sys/types.h>
-#include <dirent.h>], [struct dirent d; d.d_type;],
-my_cv_struct_d_type=yes, my_cv_struct_d_type=no)])
+[AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>
+#include <dirent.h>]], [[struct dirent d; d.d_type;]])],[my_cv_struct_d_type=yes],[my_cv_struct_d_type=no])])
 if test $my_cv_struct_d_type = yes; then
   AC_DEFINE(HAVE_D_TYPE, 1, [Define if your struct direntry has d_type])
 fi
 
 AC_CACHE_CHECK([for d_off in struct dirent], my_cv_struct_d_off,
-[AC_TRY_COMPILE([#include <sys/types.h>
-#include <dirent.h>], [struct dirent d; d.d_off;],
-my_cv_struct_d_off=yes, my_cv_struct_d_off=no)])
+[AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>
+#include <dirent.h>]], [[struct dirent d; d.d_off;]])],[my_cv_struct_d_off=yes],[my_cv_struct_d_off=no])])
 if test $my_cv_struct_d_off = yes; then
   AC_DEFINE(HAVE_D_OFF, 1, [Define if your struct direntry has d_off])
 fi
@@ -281,31 +297,43 @@ dnl ================================================================
 
 run_fuse_test=yes
 AC_ARG_ENABLE([fuse-test],
-              AC_HELP_STRING([--disable-fuse-test],[Disable test for fuse version]),
+              AS_HELP_STRING([--disable-fuse-test],[Disable test for fuse version]),
               [if test "$enableval" = yes; then run_fuse_test=yes; else run_fuse_test=no; fi])
 
 if test $fuse_build = yes; then
   if test $run_fuse_test = yes; then
     AC_MSG_CHECKING([whether fuse is new enough])
 
-    pkg-config --atleast-version=2.6.0 fuse >/dev/null 2>/dev/null
-
-    if test $? != 0; then
-      dnl too old fuse or no fuse or no pkg-config
-      dnl in any case disable fuse_build
-      AC_MSG_RESULT([no])
-      fuse_build=no
-    else
+    pkg-config fuse3 >/dev/null 2>/dev/null
+    if test $? -eq 0; then
       AC_MSG_RESULT([yes])
+    else
+      pkg-config --atleast-version=2.6.0 fuse >/dev/null 2>/dev/null
+
+      if test $? -ne 0; then
+        dnl too old fuse or no fuse or no pkg-config
+        dnl in any case disable fuse_build
+        AC_MSG_RESULT([no])
+        fuse_build=no
+      else
+        AC_MSG_RESULT([yes])
+      fi
     fi
   fi
 fi
 
 if test $fuse_build = yes; then
     fuse_pkg_found=no
-    PKG_CHECK_EXISTS([fuse],[
-                     PKG_CHECK_MODULES([LIBFUSE],[fuse],
-                                       [fuse_pkg_found=yes])
+    PKG_CHECK_EXISTS([fuse3],[
+                     PKG_CHECK_MODULES([LIBFUSE],[fuse3],
+                                       [fuse_pkg_found=yes
+                                       AC_DEFINE(LIBFUSE_VERSION, 3, [Define to 2 or 3 according to libfuse major version])
+                                       ])
+                     ],
+                     [PKG_CHECK_MODULES([LIBFUSE],[fuse],
+                                        [fuse_pkg_found=yes
+                                         AC_DEFINE(LIBFUSE_VERSION, 2, [Define to 2 or 3 according to libfuse major version])
+                                        ])
                      ])
 
     if test "$fuse_pkg_found" = "yes" -o "$run_fuse_test" = "no"; then
@@ -337,7 +365,7 @@ dnl ================================================================
 
 have_liblzma=no
 use_liblzma=no
-AC_ARG_WITH(xz,AC_HELP_STRING([--with-xz],[use xz (default is YES, force to always enable)]),
+AC_ARG_WITH(xz,AS_HELP_STRING([--with-xz],[use xz (default is YES, force to always enable)]),
             ac_cv_use_xz=$withval, ac_cv_use_xz=yes)
 if test "$ac_cv_use_xz" = "yes" -o "$ac_cv_use_xz" = "force"; then
     PKG_CHECK_EXISTS([liblzma],[
@@ -361,7 +389,7 @@ dnl ================================================================
 
 have_libzstd=no
 use_libzstd=no
-AC_ARG_WITH(zstd,AC_HELP_STRING([--with-zstd],[use zstd (default is YES)]),
+AC_ARG_WITH(zstd,AS_HELP_STRING([--with-zstd],[use zstd (default is YES)]),
             ac_cv_use_zstd=$withval, ac_cv_use_zstd=yes)
 if test "$ac_cv_use_zstd" = "yes"; then
     PKG_CHECK_EXISTS([libzstd],[
@@ -384,7 +412,7 @@ dnl == check for liblzip                                          ==
 dnl ================================================================
 
 use_liblzip=no
-AC_ARG_WITH(lzip,AC_HELP_STRING([--with-lzip],[use lzip (default is YES)]),
+AC_ARG_WITH(lzip,AS_HELP_STRING([--with-lzip],[use lzip (default is YES)]),
             ac_cv_use_lzip=$withval, ac_cv_use_lzip=yes)
 if test "$ac_cv_use_lzip" = "yes"; then
     AC_CHECK_HEADERS(lzlib.h, [AC_CHECK_LIB(lz, LZ_decompress_open,
@@ -416,7 +444,7 @@ AC_SUBST(shared_build)
 
 AC_CONFIG_FILES([pkgconfig/avfs.pc])
 
-AC_OUTPUT([
+AC_CONFIG_FILES([
 Makefile
 src/Makefile
 modules/Makefile
@@ -464,7 +492,9 @@ extfs/uzip
 extfs/uzoo
 
 include/version.h
-], [chmod +x scripts/avfs-config])
+])
+AC_CONFIG_COMMANDS([default],[chmod +x scripts/avfs-config],[])
+AC_OUTPUT
 
 echo ""
 echo "Configuration details:"
@@ -480,9 +510,9 @@ else
 fi
 echo ""
 if test "x$use_system_zlib" = "xyes"; then
-  echo "  Use zlib                : system (not recommended, slower random access)"
+  echo "  Use zlib                : system"
 else
-  echo "  Use zlib                : internal (recommended, faster random access)"
+  echo "  Use zlib                : internal"
 fi
 if test "x$use_system_bzlib" = "xyes"; then
   echo "  Use bzlib               : system (not recommended, slower random access)"
