@@ -1,12 +1,10 @@
 Source: avfs
-Priority: optional
 Maintainer: Michael Meskes <meskes@debian.org>
 Uploaders: Dr. Tobias Quathamer <toddy@debian.org>
-Build-Depends: debhelper-compat (= 13), libfuse-dev, quilt (>= 0.40),
+Build-Depends: debhelper-compat (= 13), libfuse3-dev,
 	       pkgconf, unzip, liblzma-dev, zlib1g-dev, libbz2-dev,
 	       libzstd-dev, libneon27-gnutls-dev|libneon27-dev
-Standards-Version: 4.7.1
-Rules-Requires-Root: no
+Standards-Version: 4.7.4
 Section: utils
 Homepage: https://avf.sourceforge.net/
 Vcs-Browser: https://salsa.debian.org/debian/avfs

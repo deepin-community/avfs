@@ -67,7 +67,7 @@ static int new_archive(ventry *ve, struct archive *arch)
     int res;
     struct archparams *ap = (struct archparams *) ve->mnt->avfs->data;
     struct entry *root;
-    struct avstat stbuf;
+    struct avstat stbuf = {0};
 
     arch->avfs = ve->mnt->avfs;
 
